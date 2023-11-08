@@ -10,8 +10,16 @@ file_categories = {
     "documents": [".doc", ".docx", ".txt", ".pdf", ".xlsx", ".pptx"],
     "audio": [".mp3", ".ogg", ".wav", ".amr"],
     "video": [".avi", ".mp4", ".mov", ".mkv"],
-    "archives": [".zip", ".gz", ".tar"]
+    "archives": [".zip", ".gz", ".tar"],
+    "unknown": []
 }
+
+#Function to create target folders
+def create_target_folders(folder_path):
+    for directory in file_categories:
+        category_folder = os.path.join(folder_path, directory)
+        if not os.path.exists(category_folder):
+            os.makedirs(category_folder, exist_ok=True)
 
 # Function to normalize file names
 def normalize(file_name):
@@ -21,36 +29,41 @@ def normalize(file_name):
 
 # Function to process the folder and organize files
 def process_folder(folder_path):
-    for root, _, files in os.walk(folder_path):
+    for root, dirs, files in os.walk(folder_path):
         for file in files:
-            file_name, file_extension = os.path.splitext(file)
-            normalized_name = normalize(file_name)
-            new_file_name = normalized_name + file_extension
             file_path = os.path.join(root, file)
-            new_file_path = os.path.join(root, new_file_name)
+            file_name, file_extension = os.path.splitext(file)
+            normalized_file_name = normalize(file_name)
+            new_file_name = normalized_file_name + file_extension
 
-            os.rename(file_path, new_file_path)
-
-            for category, extensions in file_categories.items():
-                if file_extension.lower() in extensions:
-                    category_folder = os.path.join(root, category)
-                    os.makedirs(category_folder, exist_ok=True)
-                    shutil.move(new_file_path, os.path.join(category_folder, new_file_name))
-                    break
+            if file_extension.lower() in file_categories["images"]:
+                shutil.move(file_path, os.path.join(folder_path, 'images', new_file_name))
+            elif file_extension.lower() in file_categories["video"]:
+                shutil.move(file_path, os.path.join(folder_path, 'video', new_file_name))
+            elif file_extension.lower() in file_categories["documents"]:
+                shutil.move(file_path, os.path.join(folder_path, 'documents', new_file_name))
+            elif file_extension.lower() in file_categories["audio"]:
+                shutil.move(file_path, os.path.join(folder_path, 'audio', new_file_name))
+            elif file_extension.lower() in file_categories["archives"]:
+                shutil.move(file_path, os.path.join(folder_path, 'archives', new_file_name))
+                file_path_archives = os.path.join(folder_path, 'archives', new_file_name)
+                folder_path_archives = os.path.join(folder_path, 'archives', normalized_file_name)
+                os.makedirs(folder_path_archives, exist_ok=True)
+                shutil.unpack_archive(file_path_archives, folder_path_archives)
             else:
-                unknown_folder = os.path.join(root, "unknown")
-                os.makedirs(unknown_folder, exist_ok=True)
-                shutil.move(new_file_path, os.path.join(unknown_folder, new_file_name))
+                shutil.move(file_path, os.path.join(folder_path, 'unknown', new_file_name))
 
-        for folder in os.listdir(root):
-            folder_path = os.path.join(root, folder)
-            if os.path.isdir(folder_path) and not os.listdir(folder_path):
-                os.rmdir(folder_path)
+    for folder in os.listdir(folder_path):
+        folder_full_path = os.path.join(folder_path, folder)
+        if os.path.isdir(folder_full_path) and folder not in file_categories.items():
+            if not os.listdir(folder_full_path):
+                os.rmdir(folder_full_path)
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         print("Wrong number of args, provide target folder.")
     else:
         target_folder = sys.argv[1]
+        create_target_folders(target_folder)
         process_folder(target_folder)
         print("Sorting and organizing completed.")
